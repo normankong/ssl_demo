@@ -1,0 +1,41 @@
+https://engineering.circle.com/https-authorized-certs-with-node-js-315e548354a2
+
+1) Create a new certificate authority (CA) using this configuration.
+
+openssl req -new -x509 -days 9999 -config ca.cnf -keyout ca-key.pem -out ca-crt.pem
+
+Now that we have our certificate authority in ca-key.pem and ca-crt.pem, 
+
+2) Generate a private key for the server.
+
+openssl genrsa -out server-key.pem 4096
+
+3) Generate the certificate signing request.
+
+openssl req -new -config server.cnf -key server-key.pem -out server-csr.pem
+
+4) Sign the request using CA cert and CA key
+openssl x509 -req -extfile server.cnf -days 999 -passin "pass:password" -in server-csr.pem -CA ca-crt.pem -CAkey ca-key.pem -CAcreateserial -out server-crt.pem
+
+
+5) Prepare Client cert
+openssl genrsa -out client1-key.pem 4096
+openssl genrsa -out client2-key.pem 4096
+
+6) Create CSR 
+openssl req -new -config client1.cnf -key client1-key.pem -out client1-csr.pem
+openssl req -new -config client2.cnf -key client2-key.pem -out client2-csr.pem
+
+7) Sign the CSR and generate CLient Cert
+openssl x509 -req -extfile client1.cnf -days 999 -passin "pass:password" -in client1-csr.pem -CA ca-crt.pem -CAkey ca-key.pem -CAcreateserial -out client1-crt.pem
+openssl x509 -req -extfile client2.cnf -days 999 -passin "pass:password" -in client2-csr.pem -CA ca-crt.pem -CAkey ca-key.pem -CAcreateserial -out client2-crt.pem
+
+8) Verify whether the CA can check the cert
+openssl verify -CAfile ca-crt.pem client1-crt.pem
+openssl verify -CAfile ca-crt.pem client2-crt.pem
+
+
+9) Create Certificate Revocation List  (CRL)
+touch ca-database.txt
+openssl ca -revoke client2-crt.pem -keyfile ca-key.pem -config ca.cnf -cert ca-crt.pem -passin 'pass:password'
+openssl ca -keyfile ca-key.pem -cert ca-crt.pem -config ca.cnf -gencrl -out ca-crl.pem -passin 'pass:password'

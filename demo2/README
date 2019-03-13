@@ -1,0 +1,25 @@
+https://medium.com/@sevcsik/authentication-using-https-client-certificates-3c9d270e8326
+
+Generate a self-signed certificate (in our case, without encryption):
+Create a new 4096bit RSA key and save it to server_key.pem, without DES encryption (-newkey, -keyout and -nodes)
+Create a Certificate Signing Request for a given subject, valid for 365 days (-days, -subj)
+Sign the CSR using the server key, and save it to server_cert.pem as an X.509 certificate (-x509, -out)
+
+-- Generate Server Key / with CSR then Sign locally
+openssl req -x509 -newkey rsa:4096 -keyout server_key.pem -out server_cert.pem -nodes -days 365 -subj "/CN=localhost/O=Client\ Certificate\ Demo"
+
+-- Generate Private Key and CSR
+openssl req -newkey rsa:4096 -keyout alice_key.pem -out alice_csr.pem -nodes -days 365 -subj "/CN=Alice"
+openssl req -newkey rsa:4096 -keyout bob_key.pem   -out bob_csr.pem   -nodes -days 365 -subj "/CN=Bob"
+
+-- Sign the certificate (Alice sign by CA, Bob sign by himself)
+openssl x509 -req -in alice_csr.pem -CA server_cert.pem -CAkey server_key.pem -out alice_cert.pem -set_serial 01 -days 365
+openssl x509 -req -in bob_csr.pem   -signkey bob_key.pem -out bob_cert.pem -days 365
+
+-- Export Certificate (Private Key + Signed Cert) for sending HTTPS request
+openssl pkcs12 -export -clcerts -in alice_cert.pem -inkey alice_key.pem -out alice.p12
+openssl pkcs12 -export          -in bob_cert.pem   -inkey bob_key.pem   -out bob.p12
+
+curl --insecure --cert alice.p12 --cert-type p12 https://localhost:9999/authenticate
+curl --insecure --cert bob.p12   --cert-type p12 https://localhost:9999/authenticate
+
